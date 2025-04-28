@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# Error if no arguments
+if [[ $# -lt 1 ]]; then
+    echo "Error: Missing arguments."
+    echo "Use --help for usage information."
+    exit 1
+fi
+
+# Function of help
+help_output() {
+    echo "Usage: $0 [OPTION]... PATTERNS [FILE]..."
+    echo "Search for PATTERNS in each FILE."
+    echo "Options:"
+    echo "  -n        Show line numbers"
+    echo "  -v        Invert match (show non-matching lines)"
+    echo "  --help    Show this help message and exit"
+    exit 0
+}
+
+# Check for --help
+if [[ "$1" == "--help" ]]; then
+    help_output
+fi
+
+# Initialize options
+show_line_numbers=false
+invert_match=false
+
+# Parse options with getopts
+while getopts ":nv" opt; do
+    case $opt in
+        n) show_line_numbers=true ;;
+        v) invert_match=true ;;
+        \?) echo "Error: Invalid option: -$OPTARG"; exit 1 ;;
+    esac
+done
+
+# Shift options
+shift $((OPTIND -1))
+
+# After options, we expect two arguments: string and filename
+if [[ $# -lt 2 ]]; then
+    echo "Error: Missing search string or filename."
+    echo "Use --help for usage information."
+    exit 1
+fi
+
+search_string="$1"
+filename="$2"
+
+# Check if file exists
+if [[ ! -f "$filename" ]]; then
+    echo "Error: File '$filename' does not exist."
+    exit 1
+fi
+
+# Read the file line by line
+line_number=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+    ((line_number++))
+    
+    # Case-insensitive search
+    if echo "$line" | grep -iq "$search_string"; then
+        matched=true
+    else
+        matched=false
+    fi
+
+    # Apply invert match option
+    if $invert_match; then
+        if $matched; then
+            matched=false
+        else
+            matched=true
+        fi
+    fi
+
+    if $matched; then
+        if $show_line_numbers; then
+            echo "${line_number}:$line"
+        else
+            echo "$line"
+        fi
+    fi
+done < "$filename"
